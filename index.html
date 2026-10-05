@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>舒尔特表 Pro</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; min-height: 100%; overflow-y: auto; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+  user-select: none;
+  touch-action: manipulation;
+}
+h1 { font-size: 20px; margin: 10px 0 15px; }
+
+/* 顶部标签页导航 */
+.nav-tabs {
+  display: flex;
+  width: min(92vw, 420px);
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 15px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: #334155;
+  color: #38bdf8;
+}
+
+/* 页面视图控制 */
+.view {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+.view.active {
+  display: flex;
+}
+
+/* 游戏视图样式 */
+.panel {
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 12px;
+  width: min(92vw, 420px);
+  margin-bottom: 12px;
+}
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+select {
+  padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+  background: #334155; color: #e5e7eb; cursor: pointer;
+}
+.toggle-label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #94a3b8; cursor: pointer; }
+.stats-bar {
+  display: flex; justify-content: space-between; width: min(92vw, 420px);
+  font-size: 13px; color: #94a3b8; margin-bottom: 10px; padding: 0 4px;
+}
+.stats-bar b { color: #38bdf8; font-size: 15px; }
+#target { font-size: 18px; margin-bottom: 12px; text-align: center; }
+#target span { color: #fbbf24; font-weight: 700; font-size: 24px; }
+
+.grid-wrapper {
+  position: relative;
+  width: min(92vw, 420px);
+  aspect-ratio: 1 / 1;
+  margin-bottom: 15px;
+}
+#grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-size), 1fr);
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+}
+.cell {
+  border: none; border-radius: 8px; background: #1e293b; color: #f8fafc;
+  font-size: clamp(14px, 5vw, 24px); font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .1s, transform .1s;
+}
+.cell:active { transform: scale(.95); }
+.cell.done { background: #064e3b; color: #34d399; pointer-events: none; }
+.cell.hard-done { background: #1e293b; color: #f8fafc; pointer-events: none; }
+.cell.error { background: #7f1d1d; animation: shake .2s; }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* 底部按钮样式 */
+.main-start-btn {
+  width: min(92vw, 420px);
+  padding: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  border: none;
+  border-radius: 14px;
+  background: #38bdf8;
+  color: #0f172a;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);
+  margin-bottom: 20px;
+  transition: background 0.2s, transform 0.2s;
+}
+.main-start-btn:active { transform: scale(0.98); }
+/* 游戏中“重新开始”按钮的样式 */
+.main-start-btn.restart-mode {
+  background: #f59e0b;
+  color: #0f172a;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+}
+
+#result { text-align: center; margin-top: 5px; margin-bottom: 10px; min-height: 24px; color: #fbbf24; font-weight: 700; font-size: 16px; }
+.hidden { display: none !important; }
+
+/* 历史记录视图样式 */
+.chart-container {
+  width: min(92vw, 420px); background: #1e293b; border-radius: 16px; padding: 12px;
+  margin-bottom: 12px; display: flex; flex-direction: column; align-items: center;
+}
+.chart-title { font-size: 14px; color: #94a3b8; margin-bottom: 8px; }
+canvas { width: 100% !important; height: 160px !important; }
+
+.history-container {
+  width: min(92vw, 420px); background: #1e293b; border-radius: 16px; padding: 12px;
+  margin-bottom: 20px; display: flex; flex-direction: column;
+}
+.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.history-title { font-size: 14px; color: #94a3b8; }
+.clear-btn { background: #7f1d1d; color: #fca5a5; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.clear-btn:active { background: #991b1b; }
+#historyList { max-height: 400px; overflow-y: auto; padding-right: 4px; }
+.history-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid #334155; font-size: 13px;
+}
+.history-item:last-child { border-bottom: none; }
+.history-item .time { font-weight: 700; color: #38bdf8; font-size: 15px; width: 60px; }
+.history-item .meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge.size { background: #1e40af; color: #bfdbfe; }
+.badge.shift { background: #854d0e; color: #fef08a; }
+.badge.hard { background: #7f1d1d; color: #fca5a5; }
+.history-item .date { color: #64748b; font-size: 11px; text-align: right; }
+</style>
+</head>
+<body>
+<h1>舒尔特表 Pro</h1>
+
+<!-- 顶部 Tab 导航 -->
+<div class="nav-tabs">
+  <button id="tabGame" class="tab-btn active">🎮 游戏</button>
+  <button id="tabHistory" class="tab-btn">📊 历史数据</button>
+</div>
+
+<!-- 游戏页面 -->
+<div id="gameView" class="view active">
+  <div class="panel">
+    <div class="controls">
+      <select id="sizeSelect">
+        <option value="5">5 x 5</option>
+        <option value="6">6 x 6</option>
+        <option value="7">7 x 7</option>
+      </select>
+      <label class="toggle-label">
+        <input type="checkbox" id="shiftToggle"> 位移(5s)
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" id="hardToggle"> 困难模式
+      </label>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div>用时：<b id="time">0.00</b>s</div>
+    <div>最佳：<b id="best">--</b>s</div>
+    <div>近10次均值：<b id="avg10">--</b>s</div>
+  </div>
+
+  <div id="target" class="hidden">请点击：<span id="next">1</span></div>
+  <div id="result"></div>
+
+  <div class="grid-wrapper">
+    <div id="grid" style="--grid-size: 5;"></div>
+  </div>
+
+  <button id="mainStartBtn" class="main-start-btn">开始游戏</button>
+</div>
+
+<!-- 历史数据页面 -->
+<div id="historyView" class="view">
+  <div class="chart-container">
+    <div class="chart-title">最近成绩曲线</div>
+    <canvas id="chartCanvas"></canvas>
+  </div>
+
+  <div class="history-container">
+    <div class="history-header">
+      <div class="history-title">历史记录（全部模式）</div>
+      <button id="clearBtn" class="clear-btn">清空</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+// --- 状态管理 ---
+const state = {
+  size: 5,
+  isShiftMode: false,
+  isHardMode: false,
+  isPlaying: false,
+  next: 1,
+  startTime: 0,
+  timer: null,
+  shiftTimer: null,
+  history: [],
+  currentGrid: [],
+  clickedNumbers: new Set()
+};
+
+// DOM 元素
+const sizeSelect = document.getElementById('sizeSelect');
+const shiftToggle = document.getElementById('shiftToggle');
+const hardToggle = document.getElementById('hardToggle');
+const gridEl = document.getElementById('grid');
+const timeEl = document.getElementById('time');
+const bestEl = document.getElementById('best');
+const avg10El = document.getElementById('avg10');
+const nextEl = document.getElementById('next');
+const targetEl = document.getElementById('target');
+const resultEl = document.getElementById('result');
+const chartCanvas = document.getElementById('chartCanvas');
+const ctx = chartCanvas.getContext('2d');
+const historyList = document.getElementById('historyList');
+const clearBtn = document.getElementById('clearBtn');
+const mainStartBtn = document.getElementById('mainStartBtn');
+
+// Tab 切换元素
+const tabGame = document.getElementById('tabGame');
+const tabHistory = document.getElementById('tabHistory');
+const gameView = document.getElementById('gameView');
+const historyView = document.getElementById('historyView');
+
+// --- Tab 切换逻辑 ---
+function switchTab(tab) {
+  if (tab === 'history' && state.isPlaying) {
+    alert('游戏进行中，请先完成当前游戏！');
+    return;
+  }
+  
+  if (tab === 'game') {
+    tabGame.classList.add('active');
+    tabHistory.classList.remove('active');
+    gameView.classList.add('active');
+    historyView.classList.remove('active');
+  } else {
+    tabGame.classList.remove('active');
+    tabHistory.classList.add('active');
+    gameView.classList.remove('active');
+    historyView.classList.add('active');
+    
+    setTimeout(() => {
+      updateStats();
+      renderHistory();
+    }, 50);
+  }
+}
+
+tabGame.addEventListener('click', () => switchTab('game'));
+tabHistory.addEventListener('click', () => switchTab('history'));
+
+// --- 数据持久化 ---
+function loadData() {
+  const saved = localStorage.getItem('schulte_pro_data');
+  if (saved) {
+    state.history = JSON.parse(saved);
+  }
+  updateStats();
+  renderHistory();
+}
+
+function saveData() {
+  localStorage.setItem('schulte_pro_data', JSON.stringify(state.history));
+}
+
+// --- 统计与图表 ---
+function getFilteredHistory() {
+  return state.history.filter(h => 
+    h.size === state.size && 
+    !!h.isShift === !!state.isShiftMode && 
+    !!h.isHard === !!state.isHardMode
+  );
+}
+
+function updateStats() {
+  const filtered = getFilteredHistory();
+  if (filtered.length === 0) {
+    bestEl.textContent = '--';
+    avg10El.textContent = '--';
+    drawChart([]);
+    return;
+  }
+
+  const times = filtered.map(h => h.time);
+  bestEl.textContent = Math.min(...times).toFixed(2);
+
+  const recent10 = times.slice(-10);
+  const avg = recent10.reduce((a, b) => a + b, 0) / recent10.length;
+  avg10El.textContent = avg.toFixed(2);
+
+  drawChart(recent10);
+}
+
+// --- 历史记录渲染 ---
+function renderHistory() {
+  if (state.history.length === 0) {
+    historyList.innerHTML = '<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">暂无记录</div>';
+    return;
+  }
+
+  const sorted = [...state.history].reverse().slice(0, 100);
+  let html = '';
+  sorted.forEach(h => {
+    const timeStr = (h.time / 1000).toFixed(2);
+    const dateStr = new Date(h.date).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    
+    let badges = `<span class="badge size">${h.size}x${h.size}</span>`;
+    if (h.isShift) badges += `<span class="badge shift">位移</span>`;
+    if (h.isHard) badges += `<span class="badge hard">困难</span>`;
+    
+    html += `
+      <div class="history-item">
+        <div class="time">${timeStr}s</div>
+        <div class="meta">${badges}</div>
+        <div class="date">${dateStr}</div>
+      </div>
+    `;
+  });
+  historyList.innerHTML = html;
+}
+
+function drawChart(data) {
+  if (!historyView.classList.contains('active')) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = chartCanvas.getBoundingClientRect();
+  if (rect.width === 0) return;
+
+  chartCanvas.width = rect.width * dpr;
+  chartCanvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const padding = { top: 10, right: 10, bottom: 20, left: 30 };
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (data.length < 2) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('暂无足够数据（至少完成2次）', w / 2, h / 2);
+    return;
+  }
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const graphW = w - padding.left - padding.right;
+  const graphH = h - padding.top - padding.bottom;
+
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top);
+  ctx.lineTo(padding.left, h - padding.bottom);
+  ctx.lineTo(w - padding.right, h - padding.bottom);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  data.forEach((val, i) => {
+    const x = padding.left + (i / (data.length - 1)) * graphW;
+    const y = h - padding.bottom - ((val - min) / range) * graphH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  data.forEach((val, i) => {
+    const x = padding.left + (i / (data.length - 1)) * graphW;
+    const y = h - padding.bottom - ((val - min) / range) * graphH;
+    ctx.beginPath();
+    ctx.fillStyle = '#fbbf24';
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(max.toFixed(1), padding.left - 4, padding.top + 4);
+  ctx.fillText(min.toFixed(1), padding.left - 4, h - padding.bottom);
+}
+
+// --- 游戏逻辑 ---
+function format(ms) { return (ms / 1000).toFixed(2); }
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function renderGrid() {
+  const total = state.size * state.size;
+  state.currentGrid = shuffle([...Array(total)].map((_, i) => i + 1));
+  gridEl.style.setProperty('--grid-size', state.size);
+  gridEl.innerHTML = '';
+  state.currentGrid.forEach(num => {
+    const btn = document.createElement('button');
+    btn.className = 'cell';
+    btn.textContent = num;
+    btn.dataset.num = num;
+    gridEl.appendChild(btn);
+  });
+}
+
+// 重置游戏状态（清空网格和定时器，显示开始按钮）
+function resetGame() {
+  state.isPlaying = false;
+  clearInterval(state.timer);
+  clearInterval(state.shiftTimer);
+  targetEl.classList.add('hidden');
+  gridEl.innerHTML = '';
+  resultEl.textContent = '';
+  timeEl.textContent = '0.00';
+  
+  mainStartBtn.textContent = '开始游戏';
+  mainStartBtn.classList.remove('restart-mode');
+}
+
+// 核心开始逻辑（无论是刚打开还是游戏中点击重新开始）
+function startGame() {
+  // 如果当前在历史页，自动切回游戏页
+  if (historyView.classList.contains('active')) {
+    switchTab('game');
+  }
+
+  // 注意：这里去掉了之前的 confirm 拦截
+  // 只要点击了按钮，无论当前是否在游戏中，都直接执行重置和开始
+
+  state.isPlaying = true;
+  state.next = 1;
+  state.isShiftMode = shiftToggle.checked;
+  state.isHardMode = hardToggle.checked;
+  state.clickedNumbers.clear();
+  
+  resultEl.textContent = '';
+  targetEl.classList.remove('hidden');
+  nextEl.textContent = state.next;
+  
+  mainStartBtn.textContent = '重新开始';
+  mainStartBtn.classList.add('restart-mode');
+
+  renderGrid();
+  timeEl.textContent = '0.00';
+
+  clearInterval(state.timer);
+  clearInterval(state.shiftTimer);
+
+  state.startTime = performance.now();
+  state.timer = setInterval(() => {
+    if (state.isPlaying) timeEl.textContent = format(performance.now() - state.startTime);
+  }, 50);
+
+  if (state.isShiftMode) {
+    state.shiftTimer = setInterval(() => {
+      if (!state.isPlaying) return;
+      const activeCells = [...gridEl.querySelectorAll('.cell:not(.done):not(.hard-done)')];
+      const numbers = activeCells.map(c => c.textContent);
+      shuffle(numbers);
+      activeCells.forEach((cell, i) => {
+        cell.textContent = numbers[i];
+        cell.dataset.num = numbers[i];
+      });
+    }, 5000);
+  }
+}
+
+function finishGame() {
+  state.isPlaying = false;
+  clearInterval(state.timer);
+  clearInterval(state.shiftTimer);
+  const elapsed = performance.now() - state.startTime;
+  timeEl.textContent = format(elapsed);
+  resultEl.textContent = `完成！用时 ${format(elapsed)} 秒`;
+  targetEl.classList.add('hidden');
+
+  state.history.push({
+    size: state.size,
+    isShift: state.isShiftMode,
+    isHard: state.isHardMode,
+    time: elapsed,
+    date: Date.now()
+  });
+  saveData();
+  updateStats();
+  renderHistory();
+
+  mainStartBtn.textContent = '重新开始';
+  mainStartBtn.classList.add('restart-mode');
+}
+
+// --- 事件绑定 ---
+gridEl.addEventListener('click', e => {
+  const btn = e.target.closest('.cell');
+  if (!btn || !state.isPlaying) return;
+
+  const num = Number(btn.dataset.num);
+  
+  if (state.isHardMode && state.clickedNumbers.has(num)) {
+    btn.classList.add('error');
+    setTimeout(() => btn.classList.remove('error'), 200);
+    return;
+  }
+
+  if (num === state.next) {
+    if (state.isHardMode) {
+      state.clickedNumbers.add(num);
+      btn.classList.add('hard-done');
+    } else {
+      btn.classList.add('done');
+    }
+    
+    state.next++;
+    nextEl.textContent = state.next > state.size * state.size ? '完成' : state.next;
+    if (state.next > state.size * state.size) finishGame();
+  } else {
+    btn.classList.add('error');
+    setTimeout(() => btn.classList.remove('error'), 200);
+  }
+});
+
+mainStartBtn.addEventListener('click', startGame);
+
+clearBtn.addEventListener('click', () => {
+  if (confirm('确定要清空所有历史记录吗？此操作不可恢复。')) {
+    state.history = [];
+    saveData();
+    updateStats();
+    renderHistory();
+  }
+});
+
+sizeSelect.addEventListener('change', () => {
+  state.size = Number(sizeSelect.value);
+  resetGame();
+  updateStats();
+});
+
+shiftToggle.addEventListener('change', () => {
+  state.isShiftMode = shiftToggle.checked;
+  resetGame();
+  updateStats();
+});
+
+hardToggle.addEventListener('change', () => {
+  state.isHardMode = hardToggle.checked;
+  resetGame();
+  updateStats();
+});
+
+// 初始化
+loadData();
+resetGame();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW 注册成功', reg))
+      .catch(err => console.log('SW 注册失败', err));
+  });
+}
+</script>
+</body>
+</html>
